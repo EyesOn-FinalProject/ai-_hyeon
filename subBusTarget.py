@@ -13,7 +13,7 @@ from PIL import Image
 # import Image
 
 
-
+# ------------------------- yolov5s 모델 import -------------------------
 from pathlib import Path
 
 from models.yolo import Model, attempt_load
@@ -38,7 +38,7 @@ model2 = model2.autoshape()  # for file/URI/PIL/cv2/np inputs and NMS
 model2.conf = 0.5
 
 device = select_device('0' if torch.cuda.is_available() else 'cpu') if device is None else torch.device(device)
-
+# ------------------------- 모델 import fin -------------------------
 
 
 
@@ -48,7 +48,7 @@ on_connect는 subscriber가 브로커에 연결하면서 호출할 함수
 rc가 0이면 정상접속이 됐다는 의미
 """
 
-
+# ------------------------- 구조물 인식 함수 -------------------------
 def notice(img):
     # 현재 이미지 불러오기
     results_img = model1(img)
@@ -79,24 +79,28 @@ def notice(img):
         return 'L'
 
 
+# ------------------------- yolov5s 모델로 input 이미지 디텍팅 함수 -------------------------
 def objectDetection(img):
     results_img = model2(img)
     results_img.crop()
 #     results_img.save()
 
 
+# ------------------------- OCR_v1 -------------------------
+# OCR 버전마다 전처리 과정이 다름
 def OCR_pn(img):
-    img = cv2.imread(img)
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    gray = cv2.resize(gray, None, fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC)
-    blur = cv2.GaussianBlur(gray, (5,5), 0)
+    img = cv2.imread(img) # 이미지 로드
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) # 배경에 그레이 적용
+    gray = cv2.resize(gray, None, fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC) # 사이즈 정규화(키우기)
+    blur = cv2.GaussianBlur(gray, (5,5), 0) # 이미지에 블러 처리
 
     # ------------------- 기울기 조정 start -------------------
-    canny = cv2.Canny(blur, 700, 350, apertureSize = 5, L2gradient = True)
-    lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength = 3, maxLineGap = 150)
+    canny = cv2.Canny(blur, 700, 350, apertureSize = 5, L2gradient = True) # 이미지 외곽선만 추출
+    lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength = 3, maxLineGap = 150) # 직선 찾기
 
     angle = 0
     maxdim = 0
+    # 각도 조정
     if not (lines is None):
         for i in lines:
             xdim = i[0][2] - i[0][0]
@@ -117,17 +121,17 @@ def OCR_pn(img):
     
     plate_num = ""
     try:
-        text = pytesseract.image_to_string(blur_2, config='-c tessedit_char_whitelist=0123456789 --psm 7 --oem 1')
-        plt.figure(figsize=(12, 10))
-        plt.title('blur_2', fontdict={'fontsize': 16, 'fontweight': 'bold'})
-        plt.imshow(blur_2,cmap='gray')
-        plate_num = re.sub('[\W_]+', '', text)            
+        # tesseract OCR 적용
+        text = pytesseract.image_to_string(blur_2, config='-c tessedit_char_whitelist=0123456789 --psm 7 --oem 1') # whitelist: 숫자만 인식
+        plate_num = re.sub('[\W_]+', '', text) # 특수문자 제거
     except:
         text = None
     
     plate_num = re.sub('[\W_]+', '', text)   
     return plate_num[-4:]
 
+
+# ------------------------- OCR_v2 -------------------------
 def OCR_pn2(img):
     img = cv2.imread(img)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -137,9 +141,6 @@ def OCR_pn2(img):
     plate_num = ""
     try:
         text = pytesseract.image_to_string(blur, config='-c tessedit_char_whitelist=0123456789 --psm 7 --oem 1')
-        plt.figure(figsize=(12, 10))
-        plt.title('blur', fontdict={'fontsize': 16, 'fontweight': 'bold'})
-        plt.imshow(blur,cmap='gray')
         plate_num = re.sub('[\W_]+', '', text)            
     except:
         text = None
@@ -148,6 +149,7 @@ def OCR_pn2(img):
     return plate_num[-4:]
 
 
+# ------------------------- OCR_v3 -------------------------
 def OCR_pn3(img):
     img = cv2.imread(img)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -187,9 +189,6 @@ def OCR_pn3(img):
     dilation = cv2.dilate(thresh, rect_kern, iterations = 1)
 
     blur_3 = cv2.GaussianBlur(dilation, (5,5), 0)
-    plt.figure(figsize=(12, 10))
-    plt.title('blur_3', fontdict={'fontsize': 16, 'fontweight': 'bold'})
-    plt.imshow(blur_3,cmap='gray')
     
     plate_num = ""
     try:
@@ -202,6 +201,7 @@ def OCR_pn3(img):
     return plate_num[-4:]
             
         
+# ------------------------- OCR_v4 -------------------------
 def OCR_bn(img):
     img = cv2.imread(img)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
@@ -218,11 +218,7 @@ def OCR_bn(img):
     
     plate_num = ""
     try:
-        text = pytesseract.image_to_string(blur_2, config='-c tessedit_char_whitelist=0123456789 --psm 7 --oem 1')
-        plt.figure(figsize=(12, 10))
-        plt.title('blur_2', fontdict={'fontsize': 16, 'fontweight': 'bold'})
-        plt.imshow(blur_2,cmap='gray')
-                 
+        text = pytesseract.image_to_string(blur_2, config='-c tessedit_char_whitelist=0123456789 --psm 7 --oem 1')            
     except:
         text = None
         
@@ -230,21 +226,23 @@ def OCR_bn(img):
     return plate_num[-4:]
 
 
+# ------------------------- 목표 버스 일치 여부 확인 함수 -------------------------
 def tfBusNum(store_img, busNum, busLicenseNum):
     for img in store_img:
         try:
-            preBusNum = OCR_bn(img)
-            preBusNum2 = OCR_pn(img)
-            preBusNum3 = OCR_pn2(img)
-            preBusNum4 = OCR_pn3(img)
-            print(f'busNum: {busNum}')
-            print(f'busLicenseNum: {busLicenseNum}')
+            preBusNum = OCR_bn(img) # OCR_v1 output
+            preBusNum2 = OCR_pn(img) # OCR_v1 output
+            preBusNum3 = OCR_pn2(img) # OCR_v1 output
+            preBusNum4 = OCR_pn3(img) # OCR_v1 output
+            print(f'busNum: {busNum}') # 목표 버스 번호 
+            print(f'busLicenseNum: {busLicenseNum}') # 목표 버스 차량번호
             print('---------------예측-------------------')
             print(f'prediction busNum: {preBusNum}')
             print(f'prediction busNum2: {preBusNum2}')
             print(f'prediction busNum3: {preBusNum3}')
             print(f'prediction busNum4: {preBusNum4}')
 
+            # 목표 버스 번호와 일치 여부 확인
             if preBusNum == busNum:
                 print('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
                 print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
@@ -262,6 +260,7 @@ def tfBusNum(store_img, busNum, busLicenseNum):
                 print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
                 return True
 
+            # 목표 버스 차량번호와 일치 여부 확인
             if preBusNum == busLicenseNum:
                 print('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
                 print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
@@ -281,6 +280,8 @@ def tfBusNum(store_img, busNum, busLicenseNum):
         except:
             continue
     
+    
+# ------------------------- 버스 문 인식 함수 -------------------------
 def door(img):
     # 현재 이미지 불러오기
     results_img = model2(img)
@@ -324,20 +325,23 @@ def on_connect(client, userdata, flags, rc):
 
 def ai(uuid,img_pink,img_bus,store_img, busNum, busLicenseNum):
     print('333')
-     # 표지판 인식 함수(Center 나올때까지 반복)
-    pre = None
+    
+    
+    # ------------------------- 표지판 인식 while문(Center가 30번 나올때까지 반복) -------------------------
+    pre = None # 직전 표지판 방향
     cnt = 0
     while True:
         try:
-            direction = notice(img_pink)
+            direction = notice(img_pink) # 현재 표지판 방향
         except:
             direction = None
+            
         # R: 오른쪽에 표지판이 있습니다
         # L: 왼쪽에 표지판이 있습니다
         # C: 정면에 표지판이 있습니다
         if direction == 'R':
             cnt += 1
-            if pre != direction or cnt >= 30:
+            if pre != direction or cnt >= 30: # 직전 표지판 방향과 현재 표지판 방향이 다르거나 cnt가 30 이상이면 퍼블리싱
                 publish.single("eyeson/" + uuid,'ai/noticeInfo/R', hostname="15.164.46.54")
                 cnt = 0
             pre = direction
@@ -375,10 +379,10 @@ def ai(uuid,img_pink,img_bus,store_img, busNum, busLicenseNum):
             continue
 
 
-    # 버스 번호 인식 함수(표지판 인식 Center가 나온 후 실행)
+    # ------------------------- 버스 번호 인식 함수(표지판 인식이 끝난 후 실행) -------------------------
     while True:
         try:
-            objectDetection(img_bus)
+            objectDetection(img_bus) # yolov5s 모델로 input image 디텍팅 후 크롭된 이미지 저장
         except:
             pass
         # 버스 번호 crop 이미지 저장
@@ -390,7 +394,7 @@ def ai(uuid,img_pink,img_bus,store_img, busNum, busLicenseNum):
             break
 
 
-    # 문 방향 인식 함수(목표 버스가 일치하면 실행)            
+    # ------------------------- 문 방향 인식 함수(목표 버스가 일치함을 확인 후 실행) -------------------------            
     pre = None
     cnt = 0
     while True:
